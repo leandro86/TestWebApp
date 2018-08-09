@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using TestWebApp.Models;
 
 namespace TestWebApp.Controllers
 {
@@ -11,17 +13,25 @@ namespace TestWebApp.Controllers
     [ApiController]
     public class ValuesController : ControllerBase
     {
+        private IMapper mapper;
+
         public ValuesController(IMapper mapper)
         {
-
+            this.mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
-
 
         // GET api/values
         [HttpGet]
-        public ActionResult<IEnumerable<string>> Get()
+        [ProducesResponseType(typeof(IDataPage<Language>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(void), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(void), StatusCodes.Status406NotAcceptable)]
+        [ProducesResponseType(typeof(void), StatusCodes.Status415UnsupportedMediaType)]
+        public IDataPage<Language> Get()
         {
-            return new string[] { "value1", "value2" };
+            var languagesList = new LanguageEntity[] { new LanguageEntity { Code = "en", Description = "english" }, new LanguageEntity { Code = "it", Description = "italian" } };
+            var languagePagedList = new PagedList<LanguageEntity>(languagesList.AsQueryable(), 1, 10);
+
+            return mapper.Map<IPagedList<LanguageEntity>, IDataPage<Language>>(languagePagedList);
         }
 
         // GET api/values/5
