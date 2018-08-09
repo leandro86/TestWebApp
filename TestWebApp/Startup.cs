@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using AutoMapper;
+using TestWebApp.Mapping.Resolvers;
+using System;
+using System.Diagnostics;
+using LightInject.Microsoft.DependencyInjection;
 
 namespace TestWebApp
 {
@@ -19,17 +23,30 @@ namespace TestWebApp
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
-        {            
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);            
-            services.AddSingleton<IEnumerable<IFoo>>(sp => new[] { new Foo() });
-            services.AddAutoMapper();                        
-        }
-
-        public void ConfigureContainer(IServiceContainer container)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
+            services.AddMvc()/*.SetCompatibilityVersion(CompatibilityVersion.Version_2_1)*/;
+            services.AddSingleton<IEnumerable<IFoo>>(sp => new[] { new Foo() });
 
+            services.AddSingleton<LocalizedDescriptionResolver>();
+            services.AddAutoMapper();
+
+            var serviceContainer = new ServiceContainer(new ContainerOptions
+            {
+                EnablePropertyInjection = false,
+                LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message)
+            })
+            {
+                ScopeManagerProvider = new PerLogicalCallContextScopeManagerProvider()
+            };
+
+            return serviceContainer.CreateServiceProvider(services);
         }
+
+        //public void ConfigureContainer(IServiceContainer container)
+        //{
+
+        //}
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -44,8 +61,7 @@ namespace TestWebApp
             }
 
             app.UseHttpsRedirection();
-            app.UseMvc(r => { });
-           
+            app.UseMvc();
         }
     }
 }
