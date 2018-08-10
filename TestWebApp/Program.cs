@@ -15,8 +15,7 @@ namespace TestWebApp
         }
 
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseLightInject()                
+            WebHost.CreateDefaultBuilder(args)                
                 .UseStartup<Startup>();
     }
 

@@ -10,6 +10,8 @@ using TestWebApp.Mapping.Resolvers;
 using System;
 using System.Diagnostics;
 using LightInject.Microsoft.DependencyInjection;
+using System.Linq;
+using TestWebApp.Controllers;
 
 namespace TestWebApp
 {
@@ -34,13 +36,17 @@ namespace TestWebApp
             var serviceContainer = new ServiceContainer(new ContainerOptions
             {
                 EnablePropertyInjection = false,
-                LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message)
+                //LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message),
+                DefaultServiceSelector = s => s.Last()
             })
             {
                 ScopeManagerProvider = new PerLogicalCallContextScopeManagerProvider()
             };
 
-            return serviceContainer.CreateServiceProvider(services);
+            
+
+            return services.BuildServiceProvider();
+            //serviceContainer.CreateServiceProvider(services);            
         }
 
         //public void ConfigureContainer(IServiceContainer container)
