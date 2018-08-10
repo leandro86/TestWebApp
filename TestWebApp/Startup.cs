@@ -38,17 +38,19 @@ namespace TestWebApp
             {
                 EnablePropertyInjection = false,
                 //LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message),
-                //DefaultServiceSelector = s => s.Last()
+                DefaultServiceSelector = s => s.Last(),
+                EnableVariance = false
             })
             {
                 ScopeManagerProvider = new PerLogicalCallContextScopeManagerProvider()
             };
 
-            var lightInjectServiceProvider = serviceContainer.CreateServiceProvider(services);
+
 
             //serviceContainer.GetInstance<MvcRouteHandler>();
 
             //return services.BuildServiceProvider();
+            var lightInjectServiceProvider = serviceContainer.CreateServiceProvider(services);
             return lightInjectServiceProvider;
         }
 
