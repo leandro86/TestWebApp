@@ -29,13 +29,13 @@ namespace TestWebApp
 
     }
    
-    public static class WebHostBuilderExtensions
-    {
-        public static IWebHostBuilder UseLightInject(this IWebHostBuilder hostBuilder)
-        {
-            return hostBuilder.ConfigureServices(services => services.AddSingleton<IServiceProviderFactory<IServiceContainer>>(sp => new LightInjectServiceProviderFactory()));
-        }
-    }
+    //public static class WebHostBuilderExtensions
+    //{
+    //    public static IWebHostBuilder UseLightInject(this IWebHostBuilder hostBuilder)
+    //    {
+    //        return hostBuilder.ConfigureServices(services => services.AddSingleton<IServiceProviderFactory<IServiceContainer>>(sp => new LightInjectServiceProviderFactory()));
+    //    }
+    //}
 
     
 }

@@ -1956,6 +1956,9 @@ namespace LightInject
     /// </summary>
     public class ServiceContainer : IServiceContainer
     {
+
+        public int EmitLifeTimeCount = 0;
+
         private const string UnresolvedDependencyError = "Unresolved dependency {0}";
         private readonly Action<LogEntry> log;
         private readonly Func<Type, Type[], IMethodSkeleton> methodSkeletonFactory;
@@ -4057,6 +4060,7 @@ namespace LightInject
             }
             else
             {
+                EmitLifeTimeCount++;
                 int instanceDelegateIndex = CreateInstanceDelegateIndex(emitMethod);
                 int lifetimeIndex = CreateLifetimeIndex(serviceRegistration.Lifetime);
                 int scopeManagerIndex = CreateScopeManagerIndex();

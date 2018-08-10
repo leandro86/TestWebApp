@@ -12,6 +12,7 @@ using System.Diagnostics;
 using LightInject.Microsoft.DependencyInjection;
 using System.Linq;
 using TestWebApp.Controllers;
+using Microsoft.AspNetCore.Mvc.Internal;
 
 namespace TestWebApp
 {
@@ -37,16 +38,18 @@ namespace TestWebApp
             {
                 EnablePropertyInjection = false,
                 //LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message),
-                DefaultServiceSelector = s => s.Last()
+                //DefaultServiceSelector = s => s.Last()
             })
             {
                 ScopeManagerProvider = new PerLogicalCallContextScopeManagerProvider()
             };
 
-            
+            var lightInjectServiceProvider = serviceContainer.CreateServiceProvider(services);
 
-            return services.BuildServiceProvider();
-            //serviceContainer.CreateServiceProvider(services);            
+            //serviceContainer.GetInstance<MvcRouteHandler>();
+
+            //return services.BuildServiceProvider();
+            return lightInjectServiceProvider;
         }
 
         //public void ConfigureContainer(IServiceContainer container)

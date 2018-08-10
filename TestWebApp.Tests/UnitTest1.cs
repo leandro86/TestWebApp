@@ -16,7 +16,7 @@ namespace TestWebApp.Tests
         {
             IWebHostBuilder builder = new WebHostBuilder()
             .ConfigureTestServices(services => services.AddSingleton<IFoo, MockFoo>())
-            .UseLightInject()
+            
             .UseStartup<Startup>();                        
 
             using (var testServer = new TestServer(builder))
