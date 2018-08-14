@@ -1958,6 +1958,8 @@ namespace LightInject
     {
 
         public int EmitLifeTimeCount = 0;
+        public List<ServiceRegistration> EmittedRegistrations = new List<ServiceRegistration>();
+
 
         private const string UnresolvedDependencyError = "Unresolved dependency {0}";
         private readonly Action<LogEntry> log;
@@ -3728,6 +3730,7 @@ namespace LightInject
                 if (emitter == null)
                 {
                     emitter = CreateEmitMethodForEnumerableServiceServiceRequest(serviceType);
+                    RegisterEmitMethod(serviceType, serviceName, emitter);
                 }
             }
             else if (serviceType.IsArray)
@@ -3761,8 +3764,7 @@ namespace LightInject
             else if (serviceType.IsClosedGeneric())
             {
                 emitter = CreateEmitMethodBasedOnClosedGenericServiceRequest(serviceType, serviceName);
-            }
-
+            }            
             return emitter;
         }
 
@@ -4061,6 +4063,19 @@ namespace LightInject
             else
             {
                 EmitLifeTimeCount++;
+                EmittedRegistrations.Add(serviceRegistration);
+
+                if (serviceRegistration.ServiceType.FullName == "Microsoft.Extensions.Logging.ILoggerProvider")
+                {
+
+                }
+
+                if (EmitLifeTimeCount > 1000)
+                {
+                    var emittedServices = EmittedRegistrations.GroupBy(sr => sr.ServiceType).ToArray();
+                    var withCount = emittedServices.Select(s => new { s.Key, count = s.Count() }).OrderByDescending(c => c.count).ToArray();
+                }
+
                 int instanceDelegateIndex = CreateInstanceDelegateIndex(emitMethod);
                 int lifetimeIndex = CreateLifetimeIndex(serviceRegistration.Lifetime);
                 int scopeManagerIndex = CreateScopeManagerIndex();
@@ -5976,7 +5991,18 @@ namespace LightInject
         /// <returns>The requested service instance.</returns>
         public object GetInstance(Type serviceType)
         {
-            return WithThisScope(() => serviceFactory.GetInstance(serviceType));
+            var previosScope = scopeManager.CurrentScope;
+            scopeManager.CurrentScope = this;
+            try
+            {
+                return serviceFactory.GetInstance(serviceType);
+            }
+            finally
+            {
+                scopeManager.CurrentScope = previosScope;
+            }
+
+            //return WithThisScope(() => serviceFactory.GetInstance(serviceType));
         }
 
         /// <summary>
@@ -6020,7 +6046,18 @@ namespace LightInject
         /// <returns>The requested service instance if available, otherwise null.</returns>
         public object TryGetInstance(Type serviceType)
         {
-            return WithThisScope(() => serviceFactory.TryGetInstance(serviceType));
+            var previosScope = scopeManager.CurrentScope;
+            scopeManager.CurrentScope = this;
+            try
+            {
+                return serviceFactory.TryGetInstance(serviceType);
+            }
+            finally
+            {
+                scopeManager.CurrentScope = previosScope;
+            }
+
+            
         }
 
         /// <summary>

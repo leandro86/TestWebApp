@@ -34,23 +34,29 @@ namespace TestWebApp
             services.AddSingleton<LocalizedDescriptionResolver>();
             services.AddAutoMapper();
 
-            var serviceContainer = new ServiceContainer(new ContainerOptions
+
+            //Toggle this to see the difference in memory usage.
+            
+            bool useExplicitEnumerable = true;
+
+            var options = new ContainerOptions()
             {
                 EnablePropertyInjection = false,
-                //LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message),
-                DefaultServiceSelector = s => s.Last(),
-                EnableVariance = false
-            })
+                LogFactory = type => logEntry => Debug.WriteLine(logEntry.Message)
+            };
+            
+            if (!useExplicitEnumerable)
+            {
+                options.DefaultServiceSelector = servicesNames => servicesNames.Last();
+            }
+
+
+            var serviceContainer = new ServiceContainer(options)
             {
                 ScopeManagerProvider = new PerLogicalCallContextScopeManagerProvider()
             };
-
-
-
-            //serviceContainer.GetInstance<MvcRouteHandler>();
-
-            //return services.BuildServiceProvider();
-            var lightInjectServiceProvider = serviceContainer.CreateServiceProvider(services);
+            
+            var lightInjectServiceProvider = serviceContainer.CreateServiceProvider(services, useExplicitEnumerable);
             return lightInjectServiceProvider;
         }
 

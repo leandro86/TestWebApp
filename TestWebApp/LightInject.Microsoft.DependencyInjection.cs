@@ -38,8 +38,10 @@
 namespace LightInject.Microsoft.DependencyInjection
 {
     using System;
+    using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
+    using System.Linq.Expressions;
     using System.Reflection;
     using global::Microsoft.Extensions.DependencyInjection;
 
@@ -48,32 +50,80 @@ namespace LightInject.Microsoft.DependencyInjection
     /// </summary>
     public static class DependencyInjectionContainerExtensions
     {
+
+        private static readonly MethodInfo GetInstanceMethod;
+        private static readonly MethodInfo GetNamedInstanceMethod;
+
+        static DependencyInjectionContainerExtensions()
+        {
+            GetInstanceMethod =
+                typeof(IServiceFactory).GetTypeInfo().DeclaredMethods
+                    .Single(m => m.Name == "GetInstance" && !m.IsGenericMethod && m.GetParameters().Length == 1);
+            GetNamedInstanceMethod =
+                typeof(IServiceFactory)
+                    .GetTypeInfo().DeclaredMethods
+                    .Single(m => m.Name == "GetInstance" && !m.IsGenericMethod && m.GetParameters().Length == 2 && m.GetParameters().Last().ParameterType == typeof(string));
+        }
+
+
         /// <summary>
         /// Creates an <see cref="IServiceProvider"/> based on the given <paramref name="serviceCollection"/>.
         /// </summary>
         /// <param name="container">The target <see cref="IServiceContainer"/>.</param>
         /// <param name="serviceCollection">The <see cref="IServiceCollection"/> that contains information about the services to be registered.</param>
         /// <returns>A configured <see cref="IServiceProvider"/>.</returns>
-        public static IServiceProvider CreateServiceProvider(this IServiceContainer container, IServiceCollection serviceCollection)
+        public static IServiceProvider CreateServiceProvider(this IServiceContainer container, IServiceCollection serviceCollection, bool useExplicitEnumerable = false)
         {
             var rootScope = container.BeginScope();
             container.Register<IServiceProvider>(factory => new LightInjectServiceProvider(container), new PerRootScopeLifetime(rootScope));
             container.Register<IServiceScopeFactory>(factory => new LightInjectServiceScopeFactory(container), new PerRootScopeLifetime(rootScope));
-            RegisterServices(container, rootScope, serviceCollection);
+            if (useExplicitEnumerable)
+            {
+                RegisterServicesUsingExplicitEnumerable(container, rootScope, serviceCollection);
+            }
+            else
+            {
+                RegisterServices(container, rootScope, serviceCollection);
+            }
             return new LightInjectServiceScope(rootScope).ServiceProvider;
         }
 
         private static void RegisterServices(IServiceContainer container, Scope rootScope, IServiceCollection serviceCollection)
         {
             var registrations = serviceCollection.Select(d => CreateServiceRegistration(d, rootScope)).ToList();
-
+                     
             for (int i = 0; i < registrations.Count; i++)
             {
                 ServiceRegistration registration = registrations[i];
                 registration.ServiceName = i.ToString("D8", CultureInfo.InvariantCulture.NumberFormat);
-                container.Register(registration);
+                container.Register(registrations[i]);
             }
         }
+
+        private static void RegisterServicesUsingExplicitEnumerable(IServiceContainer container, Scope rootScope, IServiceCollection serviceCollection)
+        {
+            var registrations = serviceCollection.Select(d => CreateServiceRegistration(d, rootScope)).ToList();
+
+
+
+            var groupedRegistrations = registrations.GroupBy(sr => sr.ServiceType);
+            foreach (var groupedRegistration in groupedRegistrations)
+            {
+                groupedRegistration.Last().ServiceName = string.Empty;
+                if (!groupedRegistration.Key.GetTypeInfo().IsGenericTypeDefinition && groupedRegistration.Count() > 1)
+                {
+                    container.Register(CreateEnumerableServiceRegistration(groupedRegistration.Key, groupedRegistration));
+                }
+            }
+
+            for (int i = 0; i < registrations.Count; i++)
+            {
+                //ServiceRegistration registration = registrations[i];
+                //registration.ServiceName = i.ToString("D8", CultureInfo.InvariantCulture.NumberFormat);
+                container.Register(registrations[i]);
+            }
+        }
+
 
         private static ServiceRegistration CreateServiceRegistration(ServiceDescriptor serviceDescriptor, Scope rootScope)
         {
@@ -88,6 +138,45 @@ namespace LightInject.Microsoft.DependencyInjection
             }
 
             return CreateServiceRegistrationServiceType(serviceDescriptor, rootScope);
+        }
+
+
+        private static ServiceRegistration CreateEnumerableServiceRegistration(
+                    Type elementType,
+                    IEnumerable<ServiceRegistration> serviceRegistrations)
+        {
+            var serviceFactoryParameter = Expression.Parameter(typeof(IServiceFactory), "serviceFactory");
+            Type enumerableType = typeof(IEnumerable<>).MakeGenericType(elementType);
+            var getInstanceExpressions = new List<Expression>();
+
+            foreach (var serviceRegistration in serviceRegistrations)
+            {
+                getInstanceExpressions.Add(CreateGetInstanceExpression(serviceFactoryParameter, serviceRegistration.ServiceType, serviceRegistration.ServiceName));
+            }
+
+            var newArrayExpression = Expression.NewArrayInit(elementType, getInstanceExpressions);
+            var lambdaExpression = Expression.Lambda(newArrayExpression, serviceFactoryParameter);
+
+            ServiceRegistration enumerableRegistration = new ServiceRegistration();
+            enumerableRegistration.ServiceType = enumerableType;
+            enumerableRegistration.ServiceName = string.Empty;
+            enumerableRegistration.FactoryExpression = lambdaExpression.Compile();
+            return enumerableRegistration;
+        }
+
+        private static Expression CreateGetInstanceExpression(ParameterExpression serviceFactoryExpression, Type serviceType, string serviceName)
+        {
+            MethodCallExpression getInstanceMethodExpression;
+            if (serviceName == string.Empty)
+            {
+                getInstanceMethodExpression = Expression.Call(serviceFactoryExpression, GetInstanceMethod, Expression.Constant(serviceType));
+            }
+            else
+            {
+                getInstanceMethodExpression = Expression.Call(serviceFactoryExpression, GetNamedInstanceMethod, Expression.Constant(serviceType), Expression.Constant(serviceName));
+            }
+
+            return Expression.Convert(getInstanceMethodExpression, serviceType);
         }
 
         private static ServiceRegistration CreateServiceRegistrationServiceType(ServiceDescriptor serviceDescriptor, Scope rootScope)
