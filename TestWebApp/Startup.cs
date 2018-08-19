@@ -37,7 +37,7 @@ namespace TestWebApp
 
             //Toggle this to see the difference in memory usage.
             
-            bool useExplicitEnumerable = true;
+            bool useExplicitEnumerable = false;
 
             var options = new ContainerOptions()
             {

@@ -1991,6 +1991,9 @@ namespace LightInject
 
         private ImmutableHashTree<Type, Func<object[], object, object>> propertyInjectionDelegates =
             ImmutableHashTree<Type, Func<object[], object, object>>.Empty;
+        
+        private readonly ThreadSafeDictionary<ServiceRegistration, int> servicesToDelegatesIndex = 
+            new ThreadSafeDictionary<ServiceRegistration, int>();        
 
         private bool isLocked;
         private Type defaultLifetimeType;
@@ -4076,7 +4079,7 @@ namespace LightInject
                     var withCount = emittedServices.Select(s => new { s.Key, count = s.Count() }).OrderByDescending(c => c.count).ToArray();
                 }
 
-                int instanceDelegateIndex = CreateInstanceDelegateIndex(emitMethod);
+                int instanceDelegateIndex = servicesToDelegatesIndex.GetOrAdd(serviceRegistration, _ => CreateInstanceDelegateIndex(emitMethod));
                 int lifetimeIndex = CreateLifetimeIndex(serviceRegistration.Lifetime);
                 int scopeManagerIndex = CreateScopeManagerIndex();
                 var getInstanceMethod = LifetimeHelper.GetInstanceMethod;
